@@ -1,0 +1,41 @@
+# API
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+python-multipart>=0.0.12
+
+# Schema & validation
+pydantic>=2.9.0
+pydantic-settings>=2.6.0
+
+# Database
+sqlmodel>=0.0.22
+alembic>=1.14.0
+asyncpg>=0.30.0
+psycopg[binary]>=3.2.0
+pgvector>=0.3.5
+
+# ML
+# torch: aarch64 Linux 需用官方 nightly 或 pip 安裝，見下方說明
+# https://download.pytorch.org/whl/cpu (CPU-only aarch64)
+# 或直接 uv pip install torch（GB10 unified memory 走 CPU/MPS）
+torch>=2.5.0
+transformers>=4.47.0
+sentence-transformers>=3.3.0
+accelerate>=1.2.0
+
+# Ingestion
+feedparser>=6.0.11
+httpx>=0.28.0
+lxml>=5.3.0
+beautifulsoup4>=4.12.0
+pypdf>=5.1.0          # 上傳 PDF 文字擷取
+python-docx>=1.1.2   # 上傳 DOCX 文字擷取
+
+# Utilities
+python-dateutil>=2.9.0
+tenacity>=9.0.0
+
+# Dev (安裝時加 --group dev 或另行安裝)
+# pytest>=8.3.0
+# pytest-asyncio>=0.25.0
+# ruff>=0.8.0

@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# uv
+.venv/
+uv.lock
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Database
+*.db
+*.sqlite3
+
+# Local storage (MinIO fallback / local file store)
+data/
+storage/
+
+# HuggingFace model cache (大型檔案，不進 repo)
+.cache/
+models/
+
+# Logs & audit exports
+logs/
+*.log
+*.jsonl
+
+# Alembic
+migrations/versions/*.pyc
+
+# Test & coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.ruff_cache/
+.mypy_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
