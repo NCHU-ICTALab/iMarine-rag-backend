@@ -98,6 +98,21 @@ SOURCE_REGISTRY: list[Source] = [
         full_text_indexing=True,
         phase="MVP",
     ),
+    Source(
+        source_id="ae_news",
+        source_name="替代能源專區：最新新聞",
+        publisher="交通部航港局 iMarine 航港發展資料庫",
+        source_type="alt_energy",
+        jurisdiction="TW",
+        license_type="government_open_data_v1",
+        access_method="JSON_API",
+        feed_url="https://imarine.motcmpb.gov.tw/#/alternativeenergy/news",
+        update_frequency="daily",
+        trust_score=85,
+        attribution_required=True,
+        full_text_indexing=True,
+        phase="Phase2",
+    ),
     *[
         Source(
             source_id=sid,

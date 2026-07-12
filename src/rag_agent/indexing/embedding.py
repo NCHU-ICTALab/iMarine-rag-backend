@@ -7,6 +7,7 @@ reembed_all() 重新編碼全部 chunk（會自動調整向量欄位維度並重
 import json
 import logging
 import math
+import time
 from dataclasses import asdict, dataclass
 
 import httpx
@@ -111,6 +112,36 @@ def embed_texts(texts: list[str], normalize: bool = True) -> list[list[float]]:
 def probe_dim() -> int:
     """探測目前 embedding 的輸出維度。"""
     return len(embed_texts(["維度探測"], normalize=False)[0])
+
+
+def probe(base_url: str, api_key: str, model: str) -> tuple[bool, str, int]:
+    """測試「指定」的 API embedding 設定（打 /embeddings，不改當前 config）。
+
+    回傳 (ok, message, dim)。供設定頁 embedding 測試連線用。
+    """
+    url = base_url.rstrip("/") + "/embeddings"
+    headers = {"Authorization": f"Bearer {api_key or 'x'}"}
+    try:
+        t = time.perf_counter()
+        r = httpx.post(url, json={"model": model, "input": ["連線測試"]},
+                       headers=headers, timeout=30)
+        r.raise_for_status()
+        data = r.json().get("data") or []
+        if not data or not data[0].get("embedding"):
+            return False, f"模型「{model}」未回傳向量，可能不是 embedding 模型", 0
+        dim = len(data[0]["embedding"])
+        return True, f"連線成功（{time.perf_counter() - t:.1f}s）· 向量維度 {dim}", dim
+    except httpx.HTTPStatusError as exc:
+        code = exc.response.status_code
+        if code == 429:
+            return False, "服務限流（429），請稍後再試", 0
+        if code == 404:
+            return False, f"找不到模型「{model}」（404），請確認 embedding 模型 id", 0
+        if code in (401, 403):
+            return False, f"金鑰錯誤或無權限（{code}）", 0
+        return False, f"HTTP {code}：{exc.response.text[:100]}", 0
+    except Exception as exc:  # noqa: BLE001
+        return False, f"連線失敗：{exc}", 0
 
 
 def warmup() -> None:

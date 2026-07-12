@@ -25,7 +25,7 @@ class ReportRequest(BaseModel):
     source_ids: list[str] | None = None        # 限定的知識庫（None = 全部啟用中）
     template: str | None = None                # 模版 id（見 /api/report/templates）
     top_k: int = 12
-    max_new_tokens: int = 1024
+    max_new_tokens: int = 2048        # 六段模版需更多輸出，避免末段（結論）被截斷
     temperature: float = 0.2
 
 

@@ -122,6 +122,50 @@ class NewsChunker(BaseChunker):
         return chunks
 
 
+class AltEnergyNewsChunker(BaseChunker):
+    """替代能源新聞聚合：每則新聞一個 chunk（標題＋來源＋分類＋關鍵字）。
+
+    連結型聚合無全文，故不抓外站內容；chunk 內容較薄，但關鍵字有助 lexical 檢索。
+    chunk_id 綁定新聞 ID，重複 ingest 會自動去重（新聞才會新增）。
+    """
+
+    CREDIBILITY = 85         # 外部策展新聞標題，略低於一手法規/新聞全文
+
+    async def to_chunks(self, raw_doc: RawDocument, content: dict) -> list[Chunk]:
+        chunks: list[Chunk] = []
+        for item in content["items"]:
+            title = item.get("title", "").strip()
+            item_id = item.get("id")
+            if not title or item_id is None:
+                continue
+
+            meta_bits = []
+            if item.get("source"):
+                meta_bits.append(f"來源：{item['source']}")
+            if item.get("tags"):
+                meta_bits.append(f"分類：{item['tags']}")
+            if item.get("keywords"):
+                meta_bits.append(f"關鍵字：{item['keywords']}")
+            text = title if not meta_bits else title + "\n" + "｜".join(meta_bits)
+
+            chunks.append(Chunk(
+                chunk_id=f"AE-NEWS-{item_id}",
+                raw_document_id=raw_doc.id,
+                source_id=raw_doc.source_id,
+                source_type="alt_energy",
+                title=title,
+                text=text,
+                section_path="news",
+                original_url=item.get("link", ""),
+                published_at=_parse_dt(item.get("published_at", "")),
+                credibility_score=self.CREDIBILITY,
+                chunk_index=0,
+                token_count=self._token_count(text),
+                checksum=self._checksum(text),
+            ))
+        return chunks
+
+
 class AltEnergyChunker(BaseChunker):
     """替代能源專區：每個 section 依段落切段（與新聞相同的滑動視窗策略）。"""
 

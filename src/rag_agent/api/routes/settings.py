@@ -4,11 +4,13 @@
 api_key 只回傳末四碼遮罩，不回明文。
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...generation import provider
 from ...indexing import embedding
+from ..deps import get_session
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
@@ -74,6 +76,20 @@ async def test(cfg: TestIn) -> dict:
     """測試「指定」的生成模型設定（不改動目前 config）。"""
     ok, message = provider.probe(cfg.base_url, cfg.api_key, cfg.model)
     return {"ok": ok, "message": message}
+
+
+@router.post("/embed/test")
+async def test_embed(cfg: TestIn) -> dict:
+    """測試「指定」的 embedding 設定（打 /embeddings，不改動目前 config）。"""
+    ok, message, dim = embedding.probe(cfg.base_url, cfg.api_key, cfg.model)
+    return {"ok": ok, "message": message, "dim": dim}
+
+
+@router.post("/reembed")
+async def reembed(session: AsyncSession = Depends(get_session)) -> dict:
+    """以目前 embedding 設定重新編碼全部 chunk（換模型/維度改變後需執行）。較慢。"""
+    n, dim = await embedding.reembed_all(session)
+    return {"reembedded": n, "dim": dim}
 
 
 @router.get("/models")

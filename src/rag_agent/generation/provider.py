@@ -148,6 +148,20 @@ def test_connection() -> tuple[bool, str]:
         return False, f"連線失敗：{exc}"
 
 
+def _classify_http_error(exc: httpx.HTTPStatusError, model: str) -> str:
+    """把 HTTP 錯誤轉成使用者看得懂的訊息（429 限流 / 404 模型 / 401 金鑰…）。"""
+    code = exc.response.status_code
+    if code == 429:
+        return "服務限流（429），請稍後再試一次"
+    if code == 404:
+        return f"找不到模型「{model}」（404），請確認模型 id 或這是否為 chat 模型"
+    if code in (400, 422):
+        return f"模型「{model}」不接受此請求（{code}）——可能是 embedding/其他類型，非 chat 模型"
+    if code in (401, 403):
+        return f"金鑰錯誤或無權限（{code}）"
+    return f"HTTP {code}：{exc.response.text[:100]}"
+
+
 def probe(base_url: str, api_key: str, model: str) -> tuple[bool, str]:
     """測試「指定」的設定（不改動當前 config，不落檔），供設定頁的測試連線用。"""
     cfg = LLMConfig(provider="probe", base_url=base_url.rstrip("/"), api_key=api_key, model=model)
@@ -161,8 +175,12 @@ def probe(base_url: str, api_key: str, model: str) -> tuple[bool, str]:
         }
         r = httpx.post(_url(cfg), json=payload, headers=_headers(cfg), timeout=30)
         r.raise_for_status()
-        out = r.json()["choices"][0]["message"]["content"]
-        return True, f"連線成功（{time.perf_counter() - t:.1f}s）· 回應：{out.strip()[:40]}"
+        # 有些模型（如 reasoning 型）content 可能為空或放別的欄位；200 即視為連線成功
+        choices = r.json().get("choices") or []
+        out = (choices[0].get("message", {}) if choices else {}).get("content") or ""
+        return True, f"連線成功（{time.perf_counter() - t:.1f}s）· 回應：{out.strip()[:40] or '(空回應)'}"
+    except httpx.HTTPStatusError as exc:
+        return False, _classify_http_error(exc, model)
     except Exception as exc:  # noqa: BLE001
         return False, f"連線失敗：{exc}"
 

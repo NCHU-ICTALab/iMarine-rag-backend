@@ -59,6 +59,42 @@ NEWS_DIGEST = ReportTemplate(
     ],
 )
 
+# 仿交通部運研所《國際海運減碳趨勢與貨櫃運輸因應探討》委託研究報告結構
+MARITIME_POLICY_RESEARCH = ReportTemplate(
+    id="maritime_policy_research",
+    label="航港政策研究報告（六段）",
+    description="前言 / 國際規範趨勢 / 國際港口案例 / 我國現況 / 課題與挑戰 / 結論建議，仿委託研究報告，適合長官政策研究報告。",
+    sections=[
+        ReportSection("preface", "前言", "研究背景、動機與範圍。"),
+        ReportSection("intl_regulation", "國際規範與趨勢",
+                      "IMO 與國際組織的相關公約、規範及政策/減碳趨勢。"),
+        ReportSection("intl_cases", "國際港口與產業案例",
+                      "新加坡、歐盟等港口或先進國家的具體作法；證據不足可簡述資料有限。"),
+        ReportSection("domestic_status", "我國現況",
+                      "臺灣航商與港口目前的因應現況與推動進度。"),
+        ReportSection("challenges", "課題與挑戰",
+                      "我國面臨的關鍵課題、落差與待解問題。"),
+        ReportSection("conclusion", "結論與建議", "綜整結論並提出具體可行建議。"),
+    ],
+)
+
+# 仿航港局《國際海事公約及趨勢動態掌握與因應分析》情報動態結構
+MARITIME_INTEL_BRIEF = ReportTemplate(
+    id="maritime_intel_brief",
+    label="國際海事動態分析（五段）",
+    description="國際要聞 / 重點會議議題 / 對我國影響 / 建議事項 / 後續追蹤，仿航港局海事公約動態分析，適合定期情報彙整。",
+    sections=[
+        ReportSection("intl_news", "國際海事要聞",
+                      "近期 IMO 與國際海事的重要動態與要聞。"),
+        ReportSection("key_meetings", "重點會議與議題摘要",
+                      "重要委員會會議或議題的重點與摘要。"),
+        ReportSection("impact_tw", "對我國之影響",
+                      "上述動態對臺灣航港政策、航商與港口的影響研判。"),
+        ReportSection("recommendations", "建議事項", "因應上述動態的具體建議。"),
+        ReportSection("followup", "後續追蹤", "值得持續關注的議題與後續期程。"),
+    ],
+)
+
 FREE = ReportTemplate(
     id="free",
     label="自由格式（依需求）",
@@ -67,7 +103,11 @@ FREE = ReportTemplate(
     honor_user_prompt=True,
 )
 
-TEMPLATES: dict[str, ReportTemplate] = {t.id: t for t in (POLICY_BRIEF, NEWS_DIGEST, FREE)}
+TEMPLATES: dict[str, ReportTemplate] = {
+    t.id: t for t in (
+        POLICY_BRIEF, MARITIME_POLICY_RESEARCH, MARITIME_INTEL_BRIEF, NEWS_DIGEST, FREE,
+    )
+}
 DEFAULT_TEMPLATE = "policy_brief"
 
 

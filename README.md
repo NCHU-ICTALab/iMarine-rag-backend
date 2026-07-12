@@ -30,6 +30,7 @@
 | `ae_intl` | 替代能源專區：國際趨勢與發展 | 🟢 alt_energy | UN/IMO/EU 政策、港口加注、人才、綠色走廊 |
 | `ae_taiwan` | 替代能源專區：臺灣政策與實踐 | 🟢 alt_energy | 國內政策/法規、港口/船舶/船員、三大航商、工作平台 |
 | `ae_education` | 替代能源專區：教育資源 | 🟢 alt_energy | 研討會、培訓課程 |
+| `ae_news` | 替代能源專區：最新新聞 | 🟢 alt_energy | iMarine `/api/news`（連結型聚合，標題＋外部連結，無全文） |
 
 > 替代能源內容來自 iMarine 航港發展資料庫（`imarine.motcmpb.gov.tw/#/alternativeenergy`）SPA 背後的靜態 JSON。connector 把異質內容（文章 Markdown / 燃料介紹 / 優缺點比較 / 港口加注 / HTML 區塊）正規化成統一 `sections` 後依段落切段。
 
@@ -196,22 +197,42 @@ rag-agent/
 ## 快速開始
 
 ### 1. 前置需求
-- PostgreSQL（含 `pgvector` extension），預設連線 `postgresql+asyncpg://rag:rag@localhost:5432/rag_agent`
-- 生成模型二選一：本地 **Ollama**（`ollama pull gemma3n:e4b`）或任一 OpenAI 相容 API 金鑰
-- Embedding 於本地執行（EmbeddingGemma-300m，CPU 亦可）
-- 環境變數可用 `.env` 覆寫 `database_url`、`data_dir`、`llm_*` 預設值
+- **Docker**（用來跑 PostgreSQL + `pgvector`）
+- 生成模型二選一：本地 **Ollama**（`ollama pull gemma3n:e4b`）或任一 OpenAI 相容 API 金鑰（如 `.env` 已設好的 NCHC 端點）
+- Embedding：本地 EmbeddingGemma-300m 或 OpenAI 相容 API（依 `.env` 的 `EMBED_BACKEND` 切換）
+- 連線與模型設定由 `.env` 覆寫；預設 `DATABASE_URL=postgresql+asyncpg://rag:rag@127.0.0.1:5544/rag_agent`
 
 ### 2. 安裝
 ```bash
-uv venv && source .venv/bin/activate
-uv pip install -r requirements.txt
+uv sync          # 依 pyproject/uv.lock 建立 .venv 並安裝依賴
 ```
 
-### 3. 建立知識庫（首次）
+### 3. 啟動資料庫（PostgreSQL + pgvector）
+後端連的是 **127.0.0.1:5544** 上的 pgvector 容器。首次用以下指令建立（具名 volume `imarine_pg_data`，資料持久化，容器被刪也不遺失）：
+
+```bash
+docker run -d --name imarine-pg -p 5544:5432 \
+  -e POSTGRES_USER=rag -e POSTGRES_PASSWORD=rag -e POSTGRES_DB=rag_agent \
+  -v imarine_pg_data:/var/lib/postgresql/data \
+  pgvector/pgvector:pg16
+
+# 啟用 vector extension（首次建庫時執行一次即可；後端建表也會用到）
+docker exec imarine-pg psql -U rag -d rag_agent -c "CREATE EXTENSION IF NOT EXISTS vector;"
+```
+
+之後每次開機只要重啟既有容器，**不需重建**：
+```bash
+docker start imarine-pg
+```
+
+> 若連線被拒（`ConnectionRefusedError [WinError 1225]`），代表容器沒開 —— 先 `docker start imarine-pg`。
+> 想改 port / 帳密，同步改 `.env` 的 `DATABASE_URL`。
+
+### 4. 建立知識庫（首次）
 用 API 觸發抓取 → 切段 → 向量化（商港法 + 航港局新聞 + 替代能源 5 庫，共 7 個知識庫）：
 ```bash
-uvicorn src.rag_agent.main:app --port 8100          # 先起後端
-curl -X POST http://localhost:8100/api/ingest/run   # 另一個終端觸發
+uv run uvicorn src.rag_agent.main:app --port 8100   # 先起後端
+curl -X POST http://localhost:8100/api/ingest/run    # 另一個終端觸發
 ```
 （或用 Streamlit 介面「📚 知識庫管理」分頁按 🔄 重新抓取 / 更新。）
 
@@ -224,7 +245,8 @@ curl -X POST http://localhost:8100/api/ingest/run   # 另一個終端觸發
 ```bash
 # 終端 1 — 後端 API（用 8100 埠，避開 carbon PoC 的 8000）
 cd rag-agent
-uvicorn src.rag_agent.main:app --port 8100
+docker start imarine-pg                              # 先確認 pgvector 有開（見「快速開始 · 3」）
+uv run uvicorn src.rag_agent.main:app --port 8100
 
 # 終端 2 — 前端
 cd ../iMarine-FrontEnd
@@ -259,6 +281,8 @@ streamlit run app.py          # 對話 / 報告 / 知識庫管理 / 模型設定
 | POST | `/api/chat` | 代理式對話：規劃檢索 → 生成 → citation → audit（含 evidence package、實際 provider/model） |
 | POST | `/api/report` | 產報告：選來源（source_ids）+ 需求 + 模版 → 結構化報告（章節 + 引用 + audit） |
 | GET | `/api/report/templates` | 可用報告模版清單（policy_brief / news_digest / free） |
+| GET | `/api/policy/briefs` | 收件匣 live 情報卡（目前為每日晨報一則，由 `ae_news` 最新新聞經 LLM 綜合而成，附新聞來源引用）；讀快取，`?refresh=true` 強制重生成 |
+| POST | `/api/policy/refresh` | 更新新聞：重抓 `ae_news` → 重新生成晨報（前端「更新新聞」按鈕）；embedding 為 best-effort |
 | GET | `/api/sources` | 列出所有知識庫來源（source_type / chunk 數 / 啟用狀態），供前端右欄顯示真實知識庫 |
 | GET | `/api/audit/logs` | 最近稽核紀錄 |
 
