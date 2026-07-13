@@ -82,11 +82,15 @@ def _local_model(name: str):
 def _embed_api(cfg: EmbedConfig, texts: list[str]) -> list[list[float]]:
     url = cfg.base_url.rstrip("/") + "/embeddings"
     headers = {"Authorization": f"Bearer {cfg.api_key or 'x'}"}
-    r = httpx.post(url, json={"model": cfg.model, "input": texts},
-                   headers=headers, timeout=180)
-    r.raise_for_status()
-    data = sorted(r.json()["data"], key=lambda d: d.get("index", 0))
-    return [d["embedding"] for d in data]
+    out: list[list[float]] = []
+    for i in range(0, len(texts), BATCH_SIZE):
+        batch = texts[i:i + BATCH_SIZE]
+        r = httpx.post(url, json={"model": cfg.model, "input": batch},
+                       headers=headers, timeout=180)
+        r.raise_for_status()
+        data = sorted(r.json()["data"], key=lambda d: d.get("index", 0))
+        out.extend(d["embedding"] for d in data)
+    return out
 
 
 def _normalize(v: list[float]) -> list[float]:

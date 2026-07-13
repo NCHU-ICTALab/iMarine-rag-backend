@@ -7,6 +7,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ... import scheduler
 from ...generation.daily_brief import build_daily_brief, get_daily_brief
 from ...ingestion.pipeline import run_news_ingest
 from ..deps import get_session
@@ -32,4 +33,5 @@ async def refresh_news(session: AsyncSession = Depends(get_session)) -> dict:
     """更新新聞：重抓 ae_news → 重新生成晨報。供前端「更新新聞」按鈕。"""
     stats = await run_news_ingest(session)
     brief = await build_daily_brief(session)
+    scheduler.mark_run(stats)   # 手動更新也計入排程狀態的「上次執行」
     return {"stats": stats, "briefs": [brief] if brief else []}

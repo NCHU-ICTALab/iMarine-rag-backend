@@ -66,8 +66,13 @@ async def set_llm(cfg: LLMConfigIn) -> dict:
 
 @router.post("/embed")
 async def set_embed(cfg: EmbedConfigIn) -> dict:
-    """設定 Embedding 後端（落檔 embed_config.json）。更換模型後維度可能改變，需重新索引。"""
-    c = embedding.configure(cfg.backend, cfg.model, cfg.base_url, cfg.api_key)
+    """設定 Embedding 後端（落檔 embed_config.json）。更換模型後維度可能改變，需重新索引。
+
+    api_key 留空＝沿用目前已存的金鑰（前端 placeholder「輸入以更換」的語意），
+    避免只改模型/URL 時把既有金鑰洗成空字串。
+    """
+    api_key = cfg.api_key or embedding.current().api_key
+    c = embedding.configure(cfg.backend, cfg.model, cfg.base_url, api_key)
     return {"ok": True, "backend": c.backend, "model": c.model}
 
 
@@ -80,8 +85,12 @@ async def test(cfg: TestIn) -> dict:
 
 @router.post("/embed/test")
 async def test_embed(cfg: TestIn) -> dict:
-    """測試「指定」的 embedding 設定（打 /embeddings，不改動目前 config）。"""
-    ok, message, dim = embedding.probe(cfg.base_url, cfg.api_key, cfg.model)
+    """測試「指定」的 embedding 設定（打 /embeddings，不改動目前 config）。
+
+    api_key 留空＝用目前已存的金鑰測試（與 set_embed 一致，避免拿空金鑰測而誤報失敗）。
+    """
+    api_key = cfg.api_key or embedding.current().api_key
+    ok, message, dim = embedding.probe(cfg.base_url, api_key, cfg.model)
     return {"ok": ok, "message": message, "dim": dim}
 
 

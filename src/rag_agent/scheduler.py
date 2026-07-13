@@ -73,18 +73,27 @@ def _next_run(cfg: dict) -> str | None:
     return target.isoformat(timespec="minutes")
 
 
-async def _run_job() -> None:
+def mark_run(result: dict | None) -> None:
+    """記錄一次「更新新聞」的執行時間與結果。
+
+    排程迴圈與手動觸發（POST /api/policy/refresh）共用，讓設定頁狀態一致反映
+    最近一次更新（不論來源）。
+    """
     global _last_run_at, _last_result
+    _last_result = result
+    _last_run_at = datetime.now().isoformat(timespec="seconds")
+
+
+async def _run_job() -> None:
     logger.info("排程觸發：抓新聞 + 重生成晨報")
     try:
         async with AsyncSessionLocal() as session:
             stats = await run_news_ingest(session)
             await build_daily_brief(session)
-        _last_result = stats
+        mark_run(stats)
     except Exception as exc:  # noqa: BLE001
         logger.exception("排程工作失敗")
-        _last_result = {"error": str(exc)}
-    _last_run_at = datetime.now().isoformat(timespec="seconds")
+        mark_run({"error": str(exc)})
 
 
 async def _loop() -> None:
